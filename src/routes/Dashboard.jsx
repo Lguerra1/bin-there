@@ -33,15 +33,24 @@ export default function Dashboard() {
     // across contents without a round trip per bin. At household scale this is
     // a few hundred rows.
     const [binResult, itemResult] = await Promise.all([
-      supabase.from('containers').select('id, short_id, name').is('deleted_at', null).order('name'),
-      supabase.from('items').select('id, name, container_id').is('deleted_at', null),
+      supabase
+        .from('containers')
+        .select('id, short_id, name')
+        .eq('workspace_id', workspace.id)
+        .is('deleted_at', null)
+        .order('name'),
+      supabase
+        .from('items')
+        .select('id, name, container_id, containers!inner(workspace_id)')
+        .eq('containers.workspace_id', workspace.id)
+        .is('deleted_at', null),
     ])
 
     if (binResult.error) setError(binResult.error.message)
     else setBins(binResult.data ?? [])
     if (itemResult.data) setItems(itemResult.data)
     setLoading(false)
-  }, [])
+  }, [workspace.id])
 
   useEffect(() => {
     load()

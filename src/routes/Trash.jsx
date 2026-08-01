@@ -15,7 +15,7 @@ import {
 } from '../components/ui'
 
 export default function Trash() {
-  const { isOwner, loading: workspaceLoading } = useWorkspace()
+  const { workspace, isOwner, loading: workspaceLoading } = useWorkspace()
   const [bins, setBins] = useState([])
   const [items, setItems] = useState([])
   const [emails, setEmails] = useState(new Map())
@@ -29,14 +29,16 @@ export default function Trash() {
       supabase
         .from('containers')
         .select('id, name, short_id, deleted_at, deleted_by')
+        .eq('workspace_id', workspace.id)
         .not('deleted_at', 'is', null)
         .order('deleted_at', { ascending: false }),
       supabase
         .from('items')
-        .select('id, name, deleted_at, deleted_by, containers (id, name, deleted_at)')
+        .select('id, name, deleted_at, deleted_by, containers!inner (id, name, deleted_at, workspace_id)')
+        .eq('containers.workspace_id', workspace.id)
         .not('deleted_at', 'is', null)
         .order('deleted_at', { ascending: false }),
-      supabase.from('member_emails').select('user_id, email'),
+      supabase.from('member_emails').select('user_id, email').eq('workspace_id', workspace.id),
     ])
 
     if (binResult.error) setError(binResult.error.message)
@@ -50,7 +52,7 @@ export default function Trash() {
       setEmails(new Map(emailResult.data.map((row) => [row.user_id, row.email])))
     }
     setLoading(false)
-  }, [])
+  }, [workspace.id])
 
   useEffect(() => {
     load()

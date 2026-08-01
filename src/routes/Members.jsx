@@ -31,14 +31,21 @@ export default function Members() {
   const [form, setForm] = useState({ email: '', role: 'read', canDeleteBins: false })
 
   const load = useCallback(async () => {
+    // Every query is scoped to the current workspace. Row level security would
+    // happily return rows from any workspace this user belongs to, which is
+    // wrong here -- this screen is about one workspace at a time.
     const [memberResult, inviteResult, emailResult] = await Promise.all([
-      supabase.from('memberships').select('user_id, role, can_delete_bins'),
+      supabase
+        .from('memberships')
+        .select('user_id, role, can_delete_bins')
+        .eq('workspace_id', workspace.id),
       supabase
         .from('invites')
         .select('id, email, role, can_delete_bins, token, status, expires_at')
+        .eq('workspace_id', workspace.id)
         .eq('status', 'pending')
         .order('created_at', { ascending: false }),
-      supabase.from('member_emails').select('user_id, email'),
+      supabase.from('member_emails').select('user_id, email').eq('workspace_id', workspace.id),
     ])
 
     if (memberResult.error) setError(memberResult.error.message)
@@ -49,7 +56,7 @@ export default function Members() {
     )
     setInvites((inviteResult.data ?? []).filter((i) => new Date(i.expires_at) > new Date()))
     setLoading(false)
-  }, [])
+  }, [workspace.id])
 
   useEffect(() => {
     load()
