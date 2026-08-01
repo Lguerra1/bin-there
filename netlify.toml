@@ -1,0 +1,23 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Client side routing: every path that is not a real file must fall through to
+# index.html so React Router can handle it. Without this, scanning a sticker for
+# /box/a1b2c3 returns a 404 from Netlify instead of loading the app.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# The app holds a household inventory and should never be indexed or framed.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Robots-Tag = "noindex, nofollow"
