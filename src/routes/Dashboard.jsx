@@ -177,6 +177,7 @@ export default function Dashboard() {
               onClick={() => setQuery('')}
               className="absolute top-0 right-0 flex h-12 w-12 items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
               aria-label="Clear search"
+              title="Clear search"
             >
               <X size={20} />
             </button>

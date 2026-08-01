@@ -43,10 +43,15 @@ export function Button({
   )
 }
 
-/** Square tap target for icon-only actions. */
-export function IconButton({ variant = 'ghost', className = '', ...props }) {
+/**
+ * Square tap target for icon-only actions. The accessible name doubles as the
+ * hover tooltip, so the two can never drift apart -- and there is no second
+ * thing to remember to write.
+ */
+export function IconButton({ variant = 'ghost', className = '', title, ...props }) {
   return (
     <button
+      title={title ?? props['aria-label']}
       className={`${base} h-12 w-12 shrink-0 ${variants[variant]} ${className}`}
       {...props}
     />

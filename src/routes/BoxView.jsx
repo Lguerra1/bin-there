@@ -381,6 +381,7 @@ function BackButton() {
       to="/"
       className="-ml-3 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
       aria-label="Back to all bins"
+      title="Back to all bins"
     >
       <ArrowLeft size={22} />
     </Link>
