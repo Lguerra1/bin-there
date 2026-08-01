@@ -26,6 +26,9 @@ export function AuthProvider({ children }) {
     loading,
     signIn: (email, password) =>
       supabase.auth.signInWithPassword({ email, password }),
+    // Signing up is harmless: an account with no membership row can read
+    // nothing, because every policy is keyed off memberships.
+    signUp: (email, password) => supabase.auth.signUp({ email, password }),
     signOut: () => supabase.auth.signOut(),
   }
 

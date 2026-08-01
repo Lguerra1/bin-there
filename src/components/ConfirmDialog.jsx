@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { AlertTriangle } from 'lucide-react'
+import { Button } from './ui'
 
 /**
  * Replaces window.confirm(). Escape cancels, the backdrop cancels, and focus
@@ -39,7 +40,7 @@ export default function ConfirmDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 backdrop-blur-[2px] sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center"
       onClick={onCancel}
       role="presentation"
     >
@@ -48,42 +49,38 @@ export default function ConfirmDialog({
         aria-modal="true"
         aria-labelledby="confirm-title"
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-sm rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-900"
+        className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900"
       >
-        <div className="flex gap-3 p-4">
-          <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400">
-            <AlertTriangle size={16} />
-          </div>
-          <div className="min-w-0">
-            <h2
-              id="confirm-title"
-              className="text-sm font-semibold text-gray-900 dark:text-gray-50"
-            >
-              {title}
-            </h2>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{message}</p>
-            {detail && (
-              <p className="mt-2 text-xs text-gray-500 dark:text-gray-500">{detail}</p>
-            )}
-          </div>
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400">
+          <AlertTriangle size={26} strokeWidth={1.75} />
         </div>
 
-        <div className="flex justify-end gap-2 border-t border-gray-100 px-4 py-3 dark:border-gray-800">
-          <button
+        <h2
+          id="confirm-title"
+          className="mt-4 text-center text-xl font-semibold text-gray-900 dark:text-gray-50"
+        >
+          {title}
+        </h2>
+        <p className="mt-2 text-center text-base text-gray-600 dark:text-gray-400">{message}</p>
+        {detail && (
+          <p className="mt-3 rounded-xl bg-gray-50 px-4 py-3 text-center text-sm text-gray-500 dark:bg-gray-800/60 dark:text-gray-400">
+            {detail}
+          </p>
+        )}
+
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row">
+          <Button
             ref={cancelRef}
+            variant="secondary"
+            fullWidth
             onClick={onCancel}
             disabled={busy}
-            className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:ring-2 focus:ring-gray-400 focus:outline-none disabled:opacity-50 dark:text-gray-300 dark:hover:bg-gray-800"
           >
             Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={busy}
-            className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:outline-none disabled:opacity-50 dark:focus:ring-offset-gray-900"
-          >
+          </Button>
+          <Button variant="danger" fullWidth onClick={onConfirm} disabled={busy}>
             {busy ? 'Working…' : confirmLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

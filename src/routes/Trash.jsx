@@ -1,8 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
-import { ArrowLeft, RotateCcw, X } from 'lucide-react'
+import { ArrowLeft, RotateCcw, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useWorkspace } from '../lib/workspace'
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  ErrorBanner,
+  Page,
+  PageHeader,
+  TextField,
+} from '../components/ui'
 
 export default function Trash() {
   const { isOwner, loading: workspaceLoading } = useWorkspace()
@@ -11,7 +21,7 @@ export default function Trash() {
   const [emails, setEmails] = useState(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [renaming, setRenaming] = useState(null) // { id, name }
+  const [renaming, setRenaming] = useState(null)
   const [busyId, setBusyId] = useState(null)
 
   const load = useCallback(async () => {
@@ -32,8 +42,8 @@ export default function Trash() {
     if (binResult.error) setError(binResult.error.message)
     setBins(binResult.data ?? [])
 
-    // Items that went down with their bin are restored by restoring the bin, so
-    // only show items that were deleted on their own.
+    // Items that went down with their bin come back when the bin is restored,
+    // so only show items that were deleted on their own.
     setItems((itemResult.data ?? []).filter((item) => !item.containers?.deleted_at))
 
     if (emailResult.data) {
@@ -45,8 +55,6 @@ export default function Trash() {
   useEffect(() => {
     load()
   }, [load])
-
-  const isEmpty = bins.length === 0 && items.length === 0
 
   async function restoreBin(id, newName) {
     setBusyId(id)
@@ -81,121 +89,126 @@ export default function Trash() {
   if (workspaceLoading) return null
   if (!isOwner) return <Navigate to="/" replace />
 
+  const isEmpty = bins.length === 0 && items.length === 0
+
   return (
-    <div className="min-h-full bg-gray-50 dark:bg-gray-950">
-      <div className="mx-auto max-w-2xl">
-        <header className="flex items-center gap-2 px-3 py-3">
+    <Page>
+      <PageHeader
+        title="Recently deleted"
+        subtitle="Kept for 30 days"
+        back={
           <Link
             to="/"
-            className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+            className="-ml-3 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
             aria-label="Back to all bins"
           >
-            <ArrowLeft size={17} />
+            <ArrowLeft size={22} />
           </Link>
-          <h1 className="flex-1 text-sm font-semibold text-gray-900 dark:text-gray-50">
-            Recently deleted
-          </h1>
-        </header>
+        }
+      />
 
-        {error && (
-          <p className="mx-3 mb-2 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
-            {error}
-          </p>
-        )}
+      <ErrorBanner>{error}</ErrorBanner>
 
-        <div className="divide-y divide-gray-100 border-y border-gray-200 bg-white dark:divide-gray-800 dark:border-gray-800 dark:bg-gray-900">
-          {loading ? (
-            <p className="px-3 py-8 text-center text-sm text-gray-400">Loading…</p>
-          ) : isEmpty ? (
-            <p className="px-3 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-              Nothing has been deleted recently.
-            </p>
-          ) : (
-            <>
-              {bins.map((bin) => (
-                <div key={bin.id} className="px-3 py-2.5">
-                  <div className="flex items-center gap-3">
-                    <div className="min-w-0 flex-1">
-                      <span className="text-sm text-gray-900 dark:text-gray-100">{bin.name}</span>
-                      <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-gray-500 uppercase dark:bg-gray-800 dark:text-gray-400">
-                        bin
-                      </span>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        <Deleted at={bin.deleted_at} by={emails.get(bin.deleted_by)} />
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => restoreBin(bin.id)}
-                      disabled={busyId === bin.id}
-                      className="flex shrink-0 items-center gap-1 text-sm font-medium text-accent hover:text-accent-hover disabled:opacity-50"
-                    >
-                      <RotateCcw size={14} /> Restore
-                    </button>
-                  </div>
-
-                  {renaming?.id === bin.id && (
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault()
-                        restoreBin(bin.id, renaming.name)
-                      }}
-                      className="mt-2 flex items-center gap-2 rounded border border-gray-200 px-2 py-1.5 dark:border-gray-700"
-                    >
-                      <input
-                        autoFocus
-                        value={renaming.name}
-                        onChange={(e) => setRenaming({ ...renaming, name: e.target.value })}
-                        placeholder="New bin name"
-                        className="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none dark:text-gray-100"
-                      />
-                      <button
-                        type="submit"
-                        className="rounded bg-accent px-2 py-1 text-xs font-medium text-white hover:bg-accent-hover"
-                      >
-                        Restore as this
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setRenaming(null)}
-                        className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                        aria-label="Cancel rename"
-                      >
-                        <X size={15} />
-                      </button>
-                    </form>
-                  )}
-                </div>
-              ))}
-
-              {items.map((item) => (
-                <div key={item.id} className="flex items-center gap-3 px-3 py-2.5">
+      {loading ? (
+        <p className="py-12 text-center text-base text-gray-400">Loading…</p>
+      ) : isEmpty ? (
+        <EmptyState icon={Trash2} title="Nothing deleted">
+          Deleted bins and items show up here so you can put them back.
+        </EmptyState>
+      ) : (
+        <ul className="space-y-3">
+          {bins.map((bin) => (
+            <li key={bin.id}>
+              <Card className="p-5">
+                <div className="flex items-start gap-3">
                   <div className="min-w-0 flex-1">
-                    <span className="text-sm text-gray-900 dark:text-gray-100">{item.name}</span>
-                    <span className="ml-2 text-xs text-gray-400 dark:text-gray-500">
+                    <p className="truncate text-lg font-semibold text-gray-900 dark:text-gray-50">
+                      {bin.name}
+                    </p>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                      <Deleted at={bin.deleted_at} by={emails.get(bin.deleted_by)} />
+                    </p>
+                  </div>
+                  <Badge>bin</Badge>
+                </div>
+
+                {renaming?.id === bin.id ? (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      restoreBin(bin.id, renaming.name)
+                    }}
+                    className="mt-4"
+                  >
+                    <TextField
+                      autoFocus
+                      label="Restore under a new name"
+                      value={renaming.name}
+                      onChange={(e) => setRenaming({ ...renaming, name: e.target.value })}
+                    />
+                    <div className="mt-3 flex gap-2">
+                      <Button type="submit" fullWidth>
+                        Restore
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => {
+                          setRenaming(null)
+                          setError(null)
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    fullWidth
+                    className="mt-4"
+                    disabled={busyId === bin.id}
+                    onClick={() => restoreBin(bin.id)}
+                  >
+                    <RotateCcw size={20} /> Restore bin
+                  </Button>
+                )}
+              </Card>
+            </li>
+          ))}
+
+          {items.map((item) => (
+            <li key={item.id}>
+              <Card className="p-5">
+                <div className="flex items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-lg font-semibold text-gray-900 dark:text-gray-50">
+                      {item.name}
+                    </p>
+                    <p className="mt-1 text-base text-gray-500 dark:text-gray-400">
                       in {item.containers?.name}
-                    </span>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                    </p>
+                    <p className="mt-0.5 text-sm text-gray-400">
                       <Deleted at={item.deleted_at} by={emails.get(item.deleted_by)} />
                     </p>
                   </div>
-                  <button
-                    onClick={() => restoreItem(item.id)}
-                    disabled={busyId === item.id}
-                    className="flex shrink-0 items-center gap-1 text-sm font-medium text-accent hover:text-accent-hover disabled:opacity-50"
-                  >
-                    <RotateCcw size={14} /> Restore
-                  </button>
+                  <Badge>item</Badge>
                 </div>
-              ))}
-            </>
-          )}
-        </div>
-
-        <p className="px-3 py-2 text-xs text-gray-400 dark:text-gray-600">
-          Deleted bins and items stay here for 30 days.
-        </p>
-      </div>
-    </div>
+                <Button
+                  variant="secondary"
+                  fullWidth
+                  className="mt-4"
+                  disabled={busyId === item.id}
+                  onClick={() => restoreItem(item.id)}
+                >
+                  <RotateCcw size={20} /> Restore item
+                </Button>
+              </Card>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Page>
   )
 }
 

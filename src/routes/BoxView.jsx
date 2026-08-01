@@ -1,13 +1,23 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
-import { ArrowLeft, Check, Pencil, QrCode, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Check, Package, Pencil, Plus, QrCode, Trash2, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useWorkspace } from '../lib/workspace'
 import ConfirmDialog from '../components/ConfirmDialog'
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  ErrorBanner,
+  IconButton,
+  Page,
+  PageHeader,
+  TextField,
+} from '../components/ui'
 
-const fieldClass =
-  'bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100'
+const emptyDraft = { name: '', quantity: 1, notes: '' }
 
 export default function BoxView() {
   const { shortId } = useParams()
@@ -18,10 +28,10 @@ export default function BoxView() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showQr, setShowQr] = useState(false)
+  const [adding, setAdding] = useState(false)
   const [editingId, setEditingId] = useState(null)
-  const [draft, setDraft] = useState({ name: '', quantity: 1, notes: '' })
-  const [newItem, setNewItem] = useState({ name: '', quantity: 1, notes: '' })
-  const [pendingDelete, setPendingDelete] = useState(null) // {kind:'item'|'bin', ...}
+  const [draft, setDraft] = useState(emptyDraft)
+  const [pendingDelete, setPendingDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
 
   const load = useCallback(async () => {
@@ -59,24 +69,27 @@ export default function BoxView() {
 
   async function addItem(event) {
     event.preventDefault()
-    const name = newItem.name.trim()
+    const name = draft.name.trim()
     if (!name) return
     setError(null)
 
     const { error: insertError } = await supabase.from('items').insert({
       container_id: bin.id,
       name,
-      quantity: Number(newItem.quantity) || 1,
-      notes: newItem.notes.trim() || null,
+      quantity: Number(draft.quantity) || 1,
+      notes: draft.notes.trim() || null,
     })
 
     if (insertError) return setError(insertError.message)
-    setNewItem({ name: '', quantity: 1, notes: '' })
+    setDraft(emptyDraft)
+    setAdding(false)
     load()
   }
 
-  async function saveEdit(id) {
+  async function saveEdit(event, id) {
+    event.preventDefault()
     setError(null)
+
     const { error: updateError } = await supabase
       .from('items')
       .update({
@@ -88,6 +101,7 @@ export default function BoxView() {
 
     if (updateError) return setError(updateError.message)
     setEditingId(null)
+    setDraft(emptyDraft)
     load()
   }
 
@@ -112,150 +126,160 @@ export default function BoxView() {
     navigate('/', { replace: true })
   }
 
-  if (loading) return <Centered>Loading…</Centered>
+  if (loading) {
+    return (
+      <Page>
+        <p className="py-20 text-center text-base text-gray-400">Loading…</p>
+      </Page>
+    )
+  }
 
   if (!bin) {
     return (
-      <Centered>
-        <p className="font-medium text-gray-900 dark:text-gray-100">Bin not found</p>
-        <p className="mt-1">
+      <Page>
+        <PageHeader title="Bin not found" back={<BackButton />} />
+        <EmptyState icon={Package} title="Nothing here">
           This sticker points to a bin that was deleted, or that you cannot access.
-        </p>
-        <Link to="/" className="mt-4 inline-block text-accent hover:underline">
-          Back to all bins
-        </Link>
-      </Centered>
+        </EmptyState>
+      </Page>
     )
   }
 
   const stickerUrl = `${window.location.origin}/box/${bin.short_id}`
 
+  const draftFields = (
+    <>
+      <TextField
+        autoFocus
+        label="Item"
+        value={draft.name}
+        onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+        placeholder="Christmas lights"
+      />
+      <div className="mt-3 grid grid-cols-[7rem_1fr] gap-3">
+        <TextField
+          label="Qty"
+          type="number"
+          min="0"
+          inputMode="numeric"
+          value={draft.quantity}
+          onChange={(e) => setDraft({ ...draft, quantity: e.target.value })}
+        />
+        <TextField
+          label="Notes"
+          value={draft.notes}
+          onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
+          placeholder="Optional"
+        />
+      </div>
+    </>
+  )
+
   return (
-    <div className="min-h-full bg-gray-50 dark:bg-gray-950">
-      <div className="mx-auto max-w-2xl">
-        <header className="flex items-center gap-2 px-3 py-3">
-          <Link
-            to="/"
-            className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-            aria-label="Back to all bins"
-          >
-            <ArrowLeft size={17} />
-          </Link>
-          <h1 className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900 dark:text-gray-50">
-            {bin.name}
-            {!canWrite && (
-              <span className="ml-2 font-normal text-gray-400 dark:text-gray-500">view only</span>
-            )}
-          </h1>
-          <button
-            onClick={() => setShowQr(true)}
-            className="flex shrink-0 items-center gap-1 text-sm font-medium text-accent hover:text-accent-hover"
-          >
-            <QrCode size={15} /> Sticker
-          </button>
-        </header>
+    <Page>
+      <PageHeader
+        title={bin.name}
+        subtitle={`${items.length} ${items.length === 1 ? 'item' : 'items'}${canWrite ? '' : ' · view only'}`}
+        back={<BackButton />}
+        actions={
+          <IconButton onClick={() => setShowQr(true)} aria-label="Show QR sticker">
+            <QrCode size={22} />
+          </IconButton>
+        }
+      />
 
-        {error && (
-          <p className="mx-3 mb-2 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
-            {error}
-          </p>
-        )}
+      <ErrorBanner>{error}</ErrorBanner>
 
-        <div className="divide-y divide-gray-100 border-y border-gray-200 bg-white dark:divide-gray-800 dark:border-gray-800 dark:bg-gray-900">
-          {canWrite && (
-            <form onSubmit={addItem} className="flex items-center gap-2 px-3 py-2">
-              <input
-                value={newItem.name}
-                onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                placeholder="Add an item…"
-                className={`${fieldClass} min-w-0 flex-1`}
-              />
-              <input
-                type="number"
-                min="0"
-                value={newItem.quantity}
-                onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
-                className={`${fieldClass} w-10 text-right tabular-nums`}
-                aria-label="Quantity"
-              />
-              <input
-                value={newItem.notes}
-                onChange={(e) => setNewItem({ ...newItem, notes: e.target.value })}
-                placeholder="notes"
-                className={`${fieldClass} w-20 shrink-0`}
-              />
-              <button
-                type="submit"
-                className="shrink-0 rounded bg-accent px-2.5 py-1 text-xs font-medium text-white hover:bg-accent-hover"
-              >
-                Add
-              </button>
-            </form>
-          )}
-
-          {items.length === 0 ? (
-            <p className="px-3 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-              This bin is empty.
-            </p>
-          ) : (
-            items.map((item) =>
-              editingId === item.id ? (
-                <div key={item.id} className="flex items-center gap-2 px-3 py-2">
-                  <input
-                    autoFocus
-                    value={draft.name}
-                    onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                    className={`${fieldClass} min-w-0 flex-1`}
-                  />
-                  <input
-                    type="number"
-                    min="0"
-                    value={draft.quantity}
-                    onChange={(e) => setDraft({ ...draft, quantity: e.target.value })}
-                    className={`${fieldClass} w-10 text-right tabular-nums`}
-                    aria-label="Quantity"
-                  />
-                  <input
-                    value={draft.notes}
-                    onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
-                    placeholder="notes"
-                    className={`${fieldClass} w-20 shrink-0`}
-                  />
-                  <button
-                    onClick={() => saveEdit(item.id)}
-                    className="shrink-0 text-accent hover:text-accent-hover"
-                    aria-label="Save"
-                  >
-                    <Check size={16} />
-                  </button>
-                  <button
-                    onClick={() => setEditingId(null)}
-                    className="shrink-0 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                    aria-label="Cancel"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              ) : (
-                <div
-                  key={item.id}
-                  className="group flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+      {canWrite &&
+        (adding ? (
+          <Card className="mb-4 p-4">
+            <form onSubmit={addItem}>
+              {draftFields}
+              <div className="mt-4 flex gap-2">
+                <Button type="submit" fullWidth>
+                  Add item
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setAdding(false)
+                    setDraft(emptyDraft)
+                  }}
                 >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </Card>
+        ) : (
+          <Button
+            fullWidth
+            size="lg"
+            className="mb-4"
+            onClick={() => {
+              setEditingId(null)
+              setDraft(emptyDraft)
+              setAdding(true)
+            }}
+          >
+            <Plus size={22} /> Add item
+          </Button>
+        ))}
+
+      {items.length === 0 ? (
+        <EmptyState icon={Package} title="This bin is empty">
+          {canWrite ? 'Add the first item above.' : 'Nothing has been added yet.'}
+        </EmptyState>
+      ) : (
+        <ul className="space-y-3">
+          {items.map((item) =>
+            editingId === item.id ? (
+              <li key={item.id}>
+                <Card className="p-4">
+                  <form onSubmit={(e) => saveEdit(e, item.id)}>
+                    {draftFields}
+                    <div className="mt-4 flex gap-2">
+                      <Button type="submit" fullWidth>
+                        <Check size={20} /> Save
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => {
+                          setEditingId(null)
+                          setDraft(emptyDraft)
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </form>
+                </Card>
+              </li>
+            ) : (
+              <li key={item.id}>
+                <Card className="flex items-center gap-3 p-5">
                   <div className="min-w-0 flex-1">
-                    <span className="text-sm text-gray-900 dark:text-gray-100">{item.name}</span>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-gray-50">
+                      {item.name}
+                      {item.quantity !== 1 && (
+                        <span className="ml-2 text-base font-normal text-gray-500 dark:text-gray-400">
+                          ×{item.quantity}
+                        </span>
+                      )}
+                    </p>
                     {item.notes && (
-                      <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                      <p className="mt-1 text-base text-gray-500 dark:text-gray-400">
                         {item.notes}
                       </p>
                     )}
                   </div>
-                  <span className="w-8 shrink-0 text-right text-sm tabular-nums text-gray-500 dark:text-gray-400">
-                    {item.quantity}
-                  </span>
                   {canWrite && (
                     <div className="flex shrink-0 gap-1">
-                      <button
+                      <IconButton
                         onClick={() => {
+                          setAdding(false)
                           setEditingId(item.id)
                           setDraft({
                             name: item.name,
@@ -263,42 +287,35 @@ export default function BoxView() {
                             notes: item.notes ?? '',
                           })
                         }}
-                        className="p-1 text-gray-300 hover:text-gray-700 dark:text-gray-600 dark:hover:text-gray-200"
                         aria-label={`Edit ${item.name}`}
                       >
-                        <Pencil size={14} />
-                      </button>
-                      <button
+                        <Pencil size={20} />
+                      </IconButton>
+                      <IconButton
+                        variant="dangerGhost"
                         onClick={() =>
                           setPendingDelete({ kind: 'item', id: item.id, name: item.name })
                         }
-                        className="p-1 text-gray-300 hover:text-red-600 dark:text-gray-600 dark:hover:text-red-400"
                         aria-label={`Delete ${item.name}`}
                       >
-                        <Trash2 size={14} />
-                      </button>
+                        <Trash2 size={20} />
+                      </IconButton>
                     </div>
                   )}
-                </div>
-              ),
-            )
+                </Card>
+              </li>
+            ),
           )}
-        </div>
+        </ul>
+      )}
 
-        <div className="flex items-baseline justify-between px-3 py-2">
-          <p className="text-xs text-gray-400 dark:text-gray-600">
-            {items.length} {items.length === 1 ? 'item' : 'items'}
-          </p>
-          {canDeleteBins && (
-            <button
-              onClick={() => setPendingDelete({ kind: 'bin' })}
-              className="text-xs text-gray-400 hover:text-red-600 dark:text-gray-600 dark:hover:text-red-400"
-            >
-              Delete bin
-            </button>
-          )}
+      {canDeleteBins && (
+        <div className="mt-10 text-center">
+          <Button variant="dangerGhost" onClick={() => setPendingDelete({ kind: 'bin' })}>
+            <Trash2 size={20} /> Delete this bin
+          </Button>
         </div>
-      </div>
+      )}
 
       <ConfirmDialog
         open={pendingDelete?.kind === 'item'}
@@ -328,41 +345,44 @@ export default function BoxView() {
 
       {showQr && (
         <div
-          className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px] print:bg-transparent print:p-0"
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm print:bg-transparent print:p-0"
           onClick={() => setShowQr(false)}
         >
           <div
-            className="print-area w-full max-w-xs rounded-xl border border-gray-200 bg-white p-6 text-center shadow-xl dark:border-gray-800 dark:bg-gray-900 print:max-w-none print:rounded-none print:border-0 print:shadow-none"
+            className="print-area w-full max-w-sm rounded-2xl bg-white p-7 text-center shadow-2xl dark:bg-gray-900 print:max-w-none print:rounded-none print:shadow-none"
             onClick={(e) => e.stopPropagation()}
           >
-            <QRCodeSVG value={stickerUrl} size={200} level="M" className="mx-auto" />
-            <p className="mt-4 font-semibold text-gray-900 dark:text-gray-100">{bin.name}</p>
-            <p className="font-mono text-xs text-gray-400">{bin.short_id}</p>
-            <div className="mt-5 flex gap-2 print:hidden">
-              <button
-                onClick={() => window.print()}
-                className="flex-1 rounded-md bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover"
-              >
+            <QRCodeSVG value={stickerUrl} size={224} level="M" className="mx-auto" />
+            <p className="mt-5 text-xl font-semibold text-gray-900 dark:text-gray-50">
+              {bin.name}
+            </p>
+            <div className="mt-2 flex justify-center print:hidden">
+              <Badge>{bin.short_id}</Badge>
+            </div>
+            <p className="hidden font-mono text-sm print:block">{bin.short_id}</p>
+            <div className="mt-6 flex gap-2 print:hidden">
+              <Button fullWidth onClick={() => window.print()}>
                 Print
-              </button>
-              <button
-                onClick={() => setShowQr(false)}
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:text-gray-200"
-              >
+              </Button>
+              <Button variant="secondary" onClick={() => setShowQr(false)}>
                 Close
-              </button>
+              </Button>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </Page>
   )
 }
 
-function Centered({ children }) {
+function BackButton() {
   return (
-    <div className="flex min-h-full items-center justify-center bg-gray-50 p-6 text-center dark:bg-gray-950">
-      <div className="text-sm text-gray-500 dark:text-gray-400">{children}</div>
-    </div>
+    <Link
+      to="/"
+      className="-ml-3 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+      aria-label="Back to all bins"
+    >
+      <ArrowLeft size={22} />
+    </Link>
   )
 }

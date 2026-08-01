@@ -5,6 +5,8 @@ import Login from './routes/Login'
 import Dashboard from './routes/Dashboard'
 import BoxView from './routes/BoxView'
 import Trash from './routes/Trash'
+import Members from './routes/Members'
+import AcceptInvite from './routes/AcceptInvite'
 
 function Splash({ children }) {
   return (
@@ -84,6 +86,19 @@ export default function App() {
                 </RequireAuth>
               }
             />
+            <Route
+              path="/members"
+              element={
+                <RequireAuth>
+                  <RequireWorkspace>
+                    <Members />
+                  </RequireWorkspace>
+                </RequireAuth>
+              }
+            />
+            {/* Deliberately outside RequireWorkspace: the whole point is that
+                this person has no membership yet. */}
+            <Route path="/invite/:token" element={<AcceptInvite />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </WorkspaceProvider>

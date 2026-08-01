@@ -1,12 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ChevronRight, Plus, Search, X } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Box, ChevronRight, LogOut, Plus, Trash2, Users, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { useWorkspace } from '../lib/workspace'
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  ErrorBanner,
+  IconButton,
+  Page,
+  PageHeader,
+  TextField,
+} from '../components/ui'
 
 export default function Dashboard() {
   const { signOut } = useAuth()
+  const navigate = useNavigate()
   const { workspace, role, canWrite, isOwner } = useWorkspace()
   const [bins, setBins] = useState([])
   const [items, setItems] = useState([])
@@ -82,147 +94,131 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-full bg-gray-50 dark:bg-gray-950">
-      <div className="mx-auto max-w-2xl">
-        <header className="flex items-baseline justify-between px-3 py-3">
-          <div className="min-w-0">
-            <h1 className="truncate text-sm font-semibold text-gray-900 dark:text-gray-50">
-              {workspace?.name}
-              <span className="ml-2 font-normal text-gray-400 dark:text-gray-500">{role}</span>
-            </h1>
-          </div>
-          <div className="flex shrink-0 items-center gap-3">
-            {canWrite && !adding && (
-              <button
-                onClick={() => setAdding(true)}
-                className="flex items-center gap-1 text-sm font-medium text-accent hover:text-accent-hover"
-              >
-                <Plus size={15} /> New bin
-              </button>
-            )}
+    <Page>
+      <PageHeader
+        title={workspace?.name ?? 'BinThere'}
+        subtitle={`${bins.length} ${bins.length === 1 ? 'bin' : 'bins'} · ${items.length} ${items.length === 1 ? 'item' : 'items'}`}
+        actions={
+          <div className="flex items-center gap-1">
             {isOwner && (
-              <Link
-                to="/trash"
-                className="text-sm text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-              >
-                Trash
-              </Link>
+              <>
+                <IconButton onClick={() => navigate('/members')} aria-label="Members">
+                  <Users size={20} />
+                </IconButton>
+                <IconButton onClick={() => navigate('/trash')} aria-label="Recently deleted">
+                  <Trash2 size={20} />
+                </IconButton>
+              </>
             )}
-            <button
-              onClick={signOut}
-              className="text-sm text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-            >
-              Sign out
-            </button>
+            <IconButton onClick={signOut} aria-label="Sign out">
+              <LogOut size={20} />
+            </IconButton>
           </div>
-        </header>
+        }
+      />
 
-        <div className="border-y border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-          {adding && (
-            <form
-              onSubmit={createBin}
-              className="flex items-center gap-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800"
-            >
-              <input
+      <ErrorBanner>{error}</ErrorBanner>
+
+      {canWrite &&
+        (adding ? (
+          <Card className="mb-4 p-4">
+            <form onSubmit={createBin}>
+              <TextField
                 autoFocus
+                label="Bin name"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                placeholder="Bin name"
-                className="flex-1 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100"
+                placeholder="Garage shelf 3"
               />
-              <button
-                type="submit"
-                className="rounded bg-accent px-2.5 py-1 text-xs font-medium text-white hover:bg-accent-hover"
-              >
-                Create
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAdding(false)
-                  setNewName('')
-                  setError(null)
-                }}
-                className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                aria-label="Cancel"
-              >
-                <X size={16} />
-              </button>
+              <div className="mt-3 flex gap-2">
+                <Button type="submit" fullWidth>
+                  Create bin
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setAdding(false)
+                    setNewName('')
+                    setError(null)
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
             </form>
-          )}
+          </Card>
+        ) : (
+          <Button fullWidth size="lg" className="mb-4" onClick={() => setAdding(true)}>
+            <Plus size={22} /> New bin
+          </Button>
+        ))}
 
-          <div className="flex items-center gap-2 px-3 py-2">
-            <Search size={15} className="shrink-0 text-gray-400" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search bins and items…"
-              className="w-full bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100"
-            />
-            {query && (
-              <button
-                onClick={() => setQuery('')}
-                className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                aria-label="Clear search"
-              >
-                <X size={15} />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {error && (
-          <p className="mx-3 mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
-            {error}
-          </p>
-        )}
-
-        <div className="divide-y divide-gray-100 border-b border-gray-200 bg-white dark:divide-gray-800 dark:border-gray-800 dark:bg-gray-900">
-          {loading ? (
-            <p className="px-3 py-8 text-center text-sm text-gray-400">Loading…</p>
-          ) : visible.length === 0 ? (
-            <p className="px-3 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-              {query
-                ? `Nothing matches "${query}".`
-                : canWrite
-                  ? 'No bins yet. Create one to get started.'
-                  : 'No bins in this workspace yet.'}
-            </p>
-          ) : (
-            visible.map(({ bin, matches }) => (
-              <Link
-                key={bin.id}
-                to={`/box/${bin.short_id}`}
-                className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/50"
-              >
-                <div className="min-w-0 flex-1">
-                  <span className="text-sm text-gray-900 dark:text-gray-100">{bin.name}</span>
-                  {matches.length > 0 && (
-                    <p className="truncate text-xs text-gray-500 dark:text-gray-400">
-                      {matches.slice(0, 3).join(', ')}
-                      {matches.length > 3 && ` +${matches.length - 3} more`}
-                    </p>
-                  )}
-                </div>
-                <span className="w-8 shrink-0 text-right text-sm tabular-nums text-gray-500 dark:text-gray-400">
-                  {countsByBin.get(bin.id) ?? 0}
-                </span>
-                <span className="w-16 shrink-0 text-right font-mono text-xs text-gray-400 dark:text-gray-600">
-                  {bin.short_id}
-                </span>
-                <ChevronRight size={15} className="shrink-0 text-gray-300 dark:text-gray-700" />
-              </Link>
-            ))
+      {bins.length > 3 && (
+        <div className="relative mb-4">
+          <TextField
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search bins and items…"
+            className="pr-12"
+          />
+          {query && (
+            <button
+              onClick={() => setQuery('')}
+              className="absolute top-0 right-0 flex h-12 w-12 items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+              aria-label="Clear search"
+            >
+              <X size={20} />
+            </button>
           )}
         </div>
+      )}
 
-        {!loading && bins.length > 0 && (
-          <p className="px-3 py-2 text-xs text-gray-400 dark:text-gray-600">
-            {items.length} {items.length === 1 ? 'item' : 'items'} across {bins.length}{' '}
-            {bins.length === 1 ? 'bin' : 'bins'}
-          </p>
-        )}
-      </div>
-    </div>
+      {loading ? (
+        <p className="py-12 text-center text-base text-gray-400">Loading…</p>
+      ) : visible.length === 0 ? (
+        <EmptyState icon={Box} title={query ? 'No matches' : 'No bins yet'}>
+          {query
+            ? `Nothing matches "${query}".`
+            : canWrite
+              ? 'Create your first bin, then print a QR sticker for it.'
+              : 'Nothing has been added to this workspace yet.'}
+        </EmptyState>
+      ) : (
+        <ul className="space-y-3">
+          {visible.map(({ bin, matches }) => {
+            const count = countsByBin.get(bin.id) ?? 0
+            return (
+              <li key={bin.id}>
+                <Link to={`/box/${bin.short_id}`} className="block">
+                  <Card className="flex items-center gap-4 p-5 transition hover:border-accent/40 hover:shadow-md">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-lg font-semibold text-gray-900 dark:text-gray-50">
+                        {bin.name}
+                      </p>
+                      <p className="mt-1 text-base text-gray-500 dark:text-gray-400">
+                        {count} {count === 1 ? 'item' : 'items'}
+                      </p>
+                      {matches.length > 0 && (
+                        <p className="mt-2 truncate text-sm text-accent">
+                          {matches.slice(0, 3).join(', ')}
+                          {matches.length > 3 && ` +${matches.length - 3} more`}
+                        </p>
+                      )}
+                    </div>
+                    <Badge>{bin.short_id}</Badge>
+                    <ChevronRight size={22} className="shrink-0 text-gray-300 dark:text-gray-600" />
+                  </Card>
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+
+      <p className="mt-6 text-center text-sm text-gray-400 dark:text-gray-600">
+        Signed in as {role}
+      </p>
+    </Page>
   )
 }
