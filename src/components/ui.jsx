@@ -130,9 +130,13 @@ export function PageHeader({ title, subtitle, back, actions }) {
     <header className="flex items-center gap-3 py-5">
       {back}
       <div className="min-w-0 flex-1">
-        <h1 className="truncate text-2xl font-semibold tracking-tight text-gray-900 dark:text-gray-50">
-          {title}
-        </h1>
+        {typeof title === 'string' ? (
+          <h1 className="truncate text-2xl font-semibold tracking-tight text-gray-900 dark:text-gray-50">
+            {title}
+          </h1>
+        ) : (
+          title
+        )}
         {subtitle && (
           <p className="mt-0.5 truncate text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>
         )}

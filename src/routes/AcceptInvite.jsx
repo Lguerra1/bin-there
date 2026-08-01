@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { Navigate, useLocation, useParams } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
+import { useWorkspace } from '../lib/workspace'
 
 /**
  * Sits outside the workspace guard on purpose: someone redeeming an invite has
@@ -10,7 +11,9 @@ import { useAuth } from '../lib/auth'
 export default function AcceptInvite() {
   const { token } = useParams()
   const location = useLocation()
+  const navigate = useNavigate()
   const { session, loading: authLoading } = useAuth()
+  const { refresh, switchWorkspace } = useWorkspace()
   const [state, setState] = useState({ status: 'working', message: null })
   const attempted = useRef(false)
 
@@ -18,15 +21,19 @@ export default function AcceptInvite() {
     if (authLoading || !session || attempted.current) return
     attempted.current = true
 
-    supabase.rpc('redeem_invite', { invite_token: token }).then(({ error }) => {
+    supabase.rpc('redeem_invite', { invite_token: token }).then(({ data, error }) => {
       if (error) {
         setState({ status: 'error', message: error.message })
         return
       }
-      // Full reload so the workspace context picks up the new membership.
-      window.location.href = '/'
+      // redeem_invite returns the workspace id, so land them in the household
+      // they were invited to rather than whichever one happens to be first.
+      refresh().then(() => {
+        switchWorkspace(data)
+        navigate('/', { replace: true })
+      })
     })
-  }, [authLoading, session, token])
+  }, [authLoading, session, token, refresh, switchWorkspace, navigate])
 
   if (authLoading) return <Centered>Loading…</Centered>
 

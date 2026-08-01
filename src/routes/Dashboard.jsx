@@ -4,6 +4,7 @@ import { Box, ChevronRight, LogOut, Plus, Trash2, Users, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { useWorkspace } from '../lib/workspace'
+import WorkspaceSwitcher from '../components/WorkspaceSwitcher'
 import {
   Badge,
   Button,
@@ -105,7 +106,7 @@ export default function Dashboard() {
   return (
     <Page>
       <PageHeader
-        title={workspace?.name ?? 'BinThere'}
+        title={<WorkspaceSwitcher />}
         subtitle={`${bins.length} ${bins.length === 1 ? 'bin' : 'bins'} · ${items.length} ${items.length === 1 ? 'item' : 'items'}`}
         actions={
           <div className="flex items-center gap-1">

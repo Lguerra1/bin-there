@@ -7,6 +7,7 @@ import BoxView from './routes/BoxView'
 import Trash from './routes/Trash'
 import Members from './routes/Members'
 import AcceptInvite from './routes/AcceptInvite'
+import NoWorkspace from './routes/NoWorkspace'
 
 function Splash({ children }) {
   return (
@@ -31,21 +32,15 @@ function RequireAuth({ children }) {
   return children
 }
 
-/** A signed-in account with no membership can see nothing. Say so plainly. */
+/**
+ * A signed-in account with no membership can see nothing, so offer the two ways
+ * out: start a household, or open an invite link.
+ */
 function RequireWorkspace({ children }) {
   const { loading, workspace } = useWorkspace()
 
   if (loading) return <Splash>Loading…</Splash>
-  if (!workspace) {
-    return (
-      <Splash>
-        <p className="font-medium text-gray-900 dark:text-gray-100">No access yet</p>
-        <p className="mt-1">
-          Your account is not part of a workspace. Ask the owner to send you an invite.
-        </p>
-      </Splash>
-    )
-  }
+  if (!workspace) return <NoWorkspace />
   return children
 }
 
